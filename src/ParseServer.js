@@ -15,6 +15,7 @@ var batch = require('./batch'),
 import { logger,
       configureLogger }       from './logger';
 import cache                    from './cache';
+import SettingsManager          from './SettingsManager';
 import Config                   from './Config';
 import parseServerPackage       from '../package.json';
 import PromiseRouter            from './PromiseRouter';
@@ -78,46 +79,53 @@ addParseCloud();
 // "javascriptKey": optional key from Parse dashboard
 // "push": optional key from configure push
 // "sessionLength": optional length in seconds for how long Sessions should be valid for
+// "enableConfigChanges": Allow modification of server config from settings endpoint.
+//                        Requires one extra database call per request to retrieve settings
+// "lockDefinedSettings": Disallow modification of code-defined server config settings
 
 class ParseServer {
 
-  constructor({
-    appId = requiredParameter('You must provide an appId!'),
-    masterKey = requiredParameter('You must provide a masterKey!'),
-    appName,
-    databaseAdapter,
-    filesAdapter,
-    push,
-    loggerAdapter,
-    logsFolder,
-    databaseURI = DatabaseAdapter.defaultDatabaseURI,
-    databaseOptions,
-    cloud,
-    collectionPrefix = '',
-    clientKey,
-    javascriptKey,
-    dotNetKey,
-    restAPIKey,
-    fileKey = 'invalid-file-key',
-    facebookAppIds = [],
-    enableAnonymousUsers = true,
-    allowClientClassCreation = true,
-    oauth = {},
-    serverURL = requiredParameter('You must provide a serverURL!'),
-    maxUploadSize = '20mb',
-    verifyUserEmails = false,
-    emailAdapter,
-    publicServerURL,
-    customPages = {
-      invalidLink: undefined,
-      verifyEmailSuccess: undefined,
-      choosePassword: undefined,
-      passwordResetSuccess: undefined
-    },
-    liveQuery = {},
-    sessionLength = 31536000, // 1 Year in seconds
-    verbose = false,
-  }) {
+  constructor(definedSettings) {
+    let {
+      appId = requiredParameter('You must provide an appId!'),
+      masterKey = requiredParameter('You must provide a masterKey!'),
+      appName,
+      databaseAdapter,
+      filesAdapter,
+      push,
+      loggerAdapter,
+      logsFolder,
+      databaseURI = DatabaseAdapter.defaultDatabaseURI,
+      databaseOptions,
+      cloud,
+      collectionPrefix = '',
+      clientKey,
+      javascriptKey,
+      dotNetKey,
+      restAPIKey,
+      fileKey = 'invalid-file-key',
+      facebookAppIds = [],
+      enableAnonymousUsers = true,
+      allowClientClassCreation = true,
+      oauth = {},
+      serverURL = requiredParameter('You must provide a serverURL!'),
+      maxUploadSize = '20mb',
+      verifyUserEmails = false,
+      emailAdapter,
+      publicServerURL,
+      customPages = {
+        invalidLink: undefined,
+        verifyEmailSuccess: undefined,
+        choosePassword: undefined,
+        passwordResetSuccess: undefined
+      },
+      liveQuery = {},
+      sessionLength = 31536000, // 1 Year in seconds
+      verbose = false,
+      logLevel = 'info',
+      enableConfigChanges = true,
+      lockDefinedSettings = true
+    } = definedSettings;
     // Initialize the node client SDK automatically
     Parse.initialize(appId, javascriptKey || 'unused', masterKey);
     Parse.serverURL = serverURL;
@@ -152,8 +160,9 @@ class ParseServer {
     }
 
     if (verbose || process.env.VERBOSE || process.env.VERBOSE_PARSE_SERVER) {
-      configureLogger({level: 'silly'});
+      logLevel = 'silly';
     }
+    configureLogger({level: logLevel});
 
     const filesControllerAdapter = loadAdapter(filesAdapter, () => {
       return new GridStoreAdapter(databaseURI);
@@ -195,6 +204,10 @@ class ParseServer {
       maxUploadSize: maxUploadSize,
       liveQueryController: liveQueryController,
       sessionLength : Number(sessionLength),
+      verbose: verbose,
+      logLevel: logLevel,
+      enableConfigChanges: enableConfigChanges,
+      applicationId: appId
     });
 
     // To maintain compatibility. TODO: Remove in some version that breaks backwards compatability
@@ -204,6 +217,20 @@ class ParseServer {
 
     Config.validate(cache.apps.get(appId));
     this.config = cache.apps.get(appId);
+
+    logger.info(`Server config changes are ${enableConfigChanges? 'enabled': 'disabled'}`);
+    this.config.settingsInitialized = Promise.resolve();
+    if (enableConfigChanges) {
+      let settingsManager = SettingsManager(appId);
+      logger.info(`Code-defined config settings ${lockDefinedSettings? 'cannot': 'can'} be modified`);
+      settingsManager.setDefined(lockDefinedSettings? definedSettings: {});
+      this.config.settingsInitialized = settingsManager.pull()
+        .then(persistedSettings => {
+          settingsManager.updateCache(persistedSettings);
+          return settingsManager.push(settingsManager.getVisible());
+        });
+    }
+
     hooksController.load();
   }
 

@@ -6,7 +6,7 @@ var cache = require('../src/cache').default;
 var DatabaseAdapter = require('../src/DatabaseAdapter');
 var express = require('express');
 var facebook = require('../src/authDataManager/facebook');
-var ParseServer = require('../src/index').ParseServer;
+var ParseServer = require('../src/index').default;
 var path = require('path');
 
 var databaseURI = process.env.DATABASE_URI;
@@ -39,13 +39,14 @@ var defaultConfiguration = {
     myoauth: {
       module: path.resolve(__dirname, "myoauth") // relative path as it's run from src
     }
-  }
+  },
+  enableConfigChanges: false
 };
 
 // Set up a default API server for testing with default configuration.
-var api = new ParseServer(defaultConfiguration);
+var parseServer = new ParseServer(defaultConfiguration);
 var app = express();
-app.use('/1', api);
+app.use('/1', parseServer.app);
 var server = app.listen(port);
 
 // Prevent reinitializing the server from clobbering Cloud Code
@@ -63,9 +64,10 @@ var setServerConfiguration = configuration => {
   server.close();
   cache.clearCache();
   app = express();
-  api = new ParseServer(configuration);
-  app.use('/1', api);
+  parseServer = new ParseServer(configuration);
+  app.use('/1', parseServer.app);
   server = app.listen(port);
+  return parseServer;
 };
 
 var restoreServerConfiguration = () => setServerConfiguration(defaultConfiguration);
@@ -140,15 +142,19 @@ function notWorking() {}
 function ok(bool, message) {
   expect(bool).toBeTruthy(message);
 }
+
 function equal(a, b, message) {
   expect(a).toEqual(b, message);
 }
+
 function strictEqual(a, b, message) {
   expect(a).toBe(b, message);
 }
+
 function notEqual(a, b, message) {
   expect(a).not.toEqual(b, message);
 }
+
 function expectSuccess(params) {
   return {
     success: params.success,
@@ -158,6 +164,7 @@ function expectSuccess(params) {
     },
   }
 }
+
 function expectError(errorCode, callback) {
   return {
     success: function(result) {
