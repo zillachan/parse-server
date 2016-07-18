@@ -2,13 +2,13 @@ const Config = require('./Config');
 const Auth = require('./Auth');
 const RESTController = require('parse/lib/node/RESTController');
 const logger = require('./logger').logger;
+const url = require('url');
 
 export function routeRESTRequest(router, method, path, request, fallback) {
 
   // Use the router to figure out what handler to use
   var match = router.match(method, path);
   if (!match) {
-    //console.log('cannot route ' + method + ' ' + path);
     if (fallback) {
       return fallback();
     }
@@ -21,19 +21,28 @@ export function routeRESTRequest(router, method, path, request, fallback) {
 }
 
 export function DirectRESTController(applicationId, router) {
-  return  {
-    request: function(method, path, data = {}, options = {}) {
+  function handleRequest(method, path, data = {}, options = {}) {
+
       let args = arguments;
       if (path == 'batch') {
-        return RESTController.request.apply(null, arguments);
+        let promises = data.requests.map((request) => {
+          return handleRequest(request.method, request.path, request.body, options).then((response) => {
+            return {success: response};
+          }, (error) => {
+            return {error: {code: error.code, error: error.message}};
+          });
+        });
+        return Parse.Promise.all(promises);
       }
 
       let config = new Config(applicationId);
-      if (path.indexOf(config.mountPath) === 0) {
-        path = path.slice(config.mountPath.length, path.length);
+      let serverURL = url.parse(config.serverURL);
+      if (path.indexOf(serverURL.path) === 0) {
+        path = path.slice(serverURL.path.length, path.length);
       }
-      if (path[0] == "/") {
-        path = path.slice(1, path.length);
+
+      if (path[0] !== "/") {
+        path = "/" + path;
       }
 
       function getSessionToken(options) {
@@ -76,7 +85,7 @@ export function DirectRESTController(applicationId, router) {
       let forwardResponse = false;
       return new Parse.Promise((resolve, reject) => {
         getAuth(options, config).then((auth) => {
-          return routeRESTRequest(router, method, '/'+path, {
+          return routeRESTRequest(router, method, path, {
             body: data,
             config,
             auth,
@@ -103,7 +112,10 @@ export function DirectRESTController(applicationId, router) {
         })
       })
       
-    },
+    };
+
+  return  {
+    request: handleRequest,
     ajax: function() {
       return RESTController.ajax.apply(null, arguments);
     }
