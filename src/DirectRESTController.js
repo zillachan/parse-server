@@ -17,19 +17,20 @@ export function routeRESTRequest(router, method, path, request, fallback) {
       'cannot route ' + method + ' ' + path);
   }
   request.params = match.params;
-  return match.handler(request);
+  return new Promise((resolve, reject) => {
+    match.handler(request).then(resolve, reject);
+  });
 }
 
 export function DirectRESTController(applicationId, router) {
   function handleRequest(method, path, data = {}, options = {}) {
-
       let args = arguments;
       if (path == 'batch') {
         let promises = data.requests.map((request) => {
           return handleRequest(request.method, request.path, request.body, options).then((response) => {
-            return {success: response};
+            return Parse.Promise.as({success: response});
           }, (error) => {
-            return {error: {code: error.code, error: error.message}};
+            return Parse.Promise.as({error: {code: error.code, error: error.message}});
           });
         });
         return Parse.Promise.all(promises);
@@ -102,12 +103,12 @@ export function DirectRESTController(applicationId, router) {
           if (forwardResponse) {
             return resolve(response);
           } 
-          //logger.verbose(method, path, response.status,  data, options);
-          //logger.verbose("|>", response.response);
+          logger.verbose(method, path, response.status,  data, options);
+          logger.verbose("|>", response.response);
           return resolve(response.response, response.status, response);
         }, (error) => {
-          //logger.verbose(method, path, data, options);
-          //logger.verbose("|>", error);
+          logger.verbose(method, path, data, options);
+          logger.verbose("|>", error);
           return reject(error);
         })
       })
