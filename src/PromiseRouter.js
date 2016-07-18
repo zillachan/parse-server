@@ -92,6 +92,9 @@ export default class PromiseRouter {
                                 '(_?[A-Za-z][A-Za-z_0-9]*)');
       pattern = pattern.replace(':objectId',
                                 '([A-Za-z0-9]+)');
+      pattern = pattern.replace(':functionName',
+                                '([A-Za-z0-9_]+)');
+
       var re = new RegExp(pattern);
       var m = path.match(re);
       if (!m) {
@@ -103,6 +106,9 @@ export default class PromiseRouter {
       }
       if (m[2]) {
         params.objectId = m[2];
+      }
+      if (route.path.indexOf(':functionName') > 0) {
+        params.functionName = m[1];
       }
 
       return {params: params, handler: route.handler};
