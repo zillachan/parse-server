@@ -318,7 +318,6 @@ describe('PushController', () => {
 
   });
 
-  // TODO: fix test
   it_exclude_dbs(['postgres'])('should properly report failures in _PushStatus', (done) => {
     var pushAdapter = {
      send: function(body, installations) {
@@ -348,13 +347,15 @@ describe('PushController', () => {
      fail('should not succeed');
      done();
    }).catch(() => {
-     let query = new Parse.Query('_PushStatus');
-     query.find({useMasterKey: true}).then((results) => {
-       expect(results.length).toBe(1);
-       let pushStatus = results[0];
-       expect(pushStatus.get('status')).toBe('failed');
-       done();
-     });
+     setTimeout(() => {
+      let query = new Parse.Query('_PushStatus');
+      query.find({useMasterKey: true}).then((results) => {
+        expect(results.length).toBe(1);
+        let pushStatus = results[0];
+        expect(pushStatus.get('status')).toBe('failed');
+        done();
+      });
+     }, 500);
    })
   });
 
