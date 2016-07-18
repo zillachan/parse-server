@@ -10,6 +10,10 @@ import express   from 'express';
 import url       from 'url';
 import log       from './logger';
 import {inspect} from 'util';
+import {
+  logRequest,
+  logResponse
+} from './SensitiveLogger';
 
 export default class PromiseRouter {
   // Each entry should be an object with:
@@ -159,26 +163,15 @@ function makeExpressHandler(appId, promiseHandler) {
   let config = AppCache.get(appId);
   return function(req, res, next) {
     try {
-      let url = maskSensitiveUrl(req);
-      let body = maskSensitiveBody(req);
-      let stringifiedBody = JSON.stringify(body, null, 2);
-      log.verbose(`REQUEST for [${req.method}] ${url}: ${stringifiedBody}`, {
-        method: req.method,
-        url: url,
-        headers: req.headers,
-        body: body
-      });
+      logRequest(req.originalUrl, req.method, req.body, req.headers);
+
       promiseHandler(req).then((result) => {
         if (!result.response && !result.location && !result.text) {
           log.error('the handler did not include a "response" or a "location" field');
           throw 'control should not get here';
         }
 
-        let stringifiedResponse = JSON.stringify(result, null, 2);
-        log.verbose(
-          `RESPONSE from [${req.method}] ${url}: ${stringifiedResponse}`,
-          {result: result}
-        );
+        logResponse(req.originalUrl, req.method, result);
 
         var status = result.status || 200;
         res.status(status);
@@ -210,35 +203,4 @@ function makeExpressHandler(appId, promiseHandler) {
       next(e);
     }
   }
-}
-
-function maskSensitiveBody(req) {
-  let maskBody = Object.assign({}, req.body);
-  let shouldMaskBody = (req.method === 'POST' && req.originalUrl.endsWith('/users')
-                       && !req.originalUrl.includes('classes')) ||
-                       (req.method === 'PUT' && /users\/\w+$/.test(req.originalUrl)
-                       && !req.originalUrl.includes('classes')) ||
-                       (req.originalUrl.includes('classes/_User'));
-  if (shouldMaskBody) {
-    for (let key of Object.keys(maskBody)) {
-      if (key == 'password') {
-        maskBody[key] = '********';
-        break;
-      }
-    }
-  }
-  return maskBody;
-}
-
-function maskSensitiveUrl(req) {
-  let maskUrl = req.originalUrl.toString();
-  let shouldMaskUrl = req.method === 'GET' && req.originalUrl.includes('/login')
-                      && !req.originalUrl.includes('classes');
-  if (shouldMaskUrl) {
-    let password = url.parse(req.originalUrl, true).query.password;
-    if (password) {
-      maskUrl = maskUrl.replace('password=' + password, 'password=********')
-    }
-  }
-  return maskUrl;
 }

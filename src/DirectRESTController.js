@@ -1,8 +1,11 @@
 const Config = require('./Config');
 const Auth = require('./Auth');
 const RESTController = require('parse/lib/node/RESTController');
-const logger = require('./logger').logger;
-const url = require('url');
+const URL = require('url');
+import {
+  logRequest,
+  logResponse
+} from './SensitiveLogger';
 
 export function routeRESTRequest(router, method, path, request, fallback) {
 
@@ -37,7 +40,7 @@ export function DirectRESTController(applicationId, router) {
       }
 
       let config = new Config(applicationId);
-      let serverURL = url.parse(config.serverURL);
+      let serverURL = URL.parse(config.serverURL);
       if (path.indexOf(serverURL.path) === 0) {
         path = path.slice(serverURL.path.length, path.length);
       }
@@ -84,6 +87,7 @@ export function DirectRESTController(applicationId, router) {
         query = data;
       }
       let forwardResponse = false;
+      logRequest(config.serverURL+path, method, data, {});
       return new Parse.Promise((resolve, reject) => {
         getAuth(options, config).then((auth) => {
           return routeRESTRequest(router, method, path, {
@@ -102,13 +106,10 @@ export function DirectRESTController(applicationId, router) {
         }).then((response) => {
           if (forwardResponse) {
             return resolve(response);
-          } 
-          logger.verbose(method, path, response.status,  data, options);
-          logger.verbose("|>", response.response);
+          }
+          logResponse(config.serverURL+path, method, response.response, {});
           return resolve(response.response, response.status, response);
         }, (error) => {
-          logger.verbose(method, path, data, options);
-          logger.verbose("|>", error);
           return reject(error);
         })
       })

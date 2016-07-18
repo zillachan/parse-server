@@ -323,7 +323,7 @@ class ParseServer {
 
     api.use(middlewares.handleParseErrors);
 
-    if (process.env.EXPERIMENTAL == '1') {
+    if (process.env.PARSE_SERVER_ENABLE_EXPERIMENTAL_DIRECT_ACCESS == '1') {
       Parse.CoreManager.setRESTController(DirectRESTController(appId, appRouter));
     }
 
