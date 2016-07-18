@@ -361,6 +361,7 @@ describe("Custom Pages, Email Verification, Password Reset", () => {
     });
   });
 
+  // TODO: fix test
   it_exclude_dbs(['postgres'])('fails if you include an emailAdapter, set a publicServerURL, but have no appName and send a password reset email', done => {
     reconfigureServer({
       appName: undefined,
@@ -376,7 +377,7 @@ describe("Custom Pages, Email Verification, Password Reset", () => {
       user.setPassword("asdf");
       user.setUsername("zxcv");
       user.set("email", "testInvalidConfig@parse.com");
-      user.signUp(null)
+      return user.signUp(null)
       .then(user => Parse.User.requestPasswordReset("testInvalidConfig@parse.com"))
       .then(result => {
         console.log(result);
@@ -393,6 +394,7 @@ describe("Custom Pages, Email Verification, Password Reset", () => {
     });
   });
 
+  // TODO: fix test
   it_exclude_dbs(['postgres'])('fails if you include an emailAdapter, have an appName, but have no publicServerURL and send a password reset email', done => {
     reconfigureServer({
       appName: undefined,
@@ -407,7 +409,7 @@ describe("Custom Pages, Email Verification, Password Reset", () => {
       user.setPassword("asdf");
       user.setUsername("zxcv");
       user.set("email", "testInvalidConfig@parse.com");
-      user.signUp(null)
+      return user.signUp(null)
       .then(user => Parse.User.requestPasswordReset("testInvalidConfig@parse.com"))
       .then(result => {
         console.log(result);
@@ -424,6 +426,7 @@ describe("Custom Pages, Email Verification, Password Reset", () => {
     });
   });
 
+  // TODO: fix test
   it_exclude_dbs(['postgres'])('fails if you set a publicServerURL, have an appName, but no emailAdapter and send a password reset email', done => {
     reconfigureServer({
       appName: 'unused',
@@ -435,7 +438,7 @@ describe("Custom Pages, Email Verification, Password Reset", () => {
       user.setPassword("asdf");
       user.setUsername("zxcv");
       user.set("email", "testInvalidConfig@parse.com");
-      user.signUp(null)
+      return user.signUp(null)
       .then(user => Parse.User.requestPasswordReset("testInvalidConfig@parse.com"))
       .then(result => {
         console.log(result);

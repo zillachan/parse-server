@@ -267,6 +267,10 @@ describe('Parse.User testing', () => {
   });
 
   it("cannot delete non-authed user", (done) => {
+    var errorHandler = function(err) {
+      fail(JSON.stringify(err));
+      done();
+    }
     var user = new Parse.User();
     user.signUp({
       "password": "asdf",
@@ -287,11 +291,14 @@ describe('Parse.User testing', () => {
                 userNotAuthed.set("username", "changed");
                 userNotAuthed.destroy(expectError(
                   Parse.Error.SESSION_MISSING, done));
-              }
+              },
+              error: errorHandler
             });
-          }
+          },
+          error: errorHandler
         });
-      }
+      },
+      error: errorHandler
     });
   });
 

@@ -56,6 +56,7 @@ import DatabaseController       from './Controllers/DatabaseController';
 const SchemaController = require('./Controllers/SchemaController');
 import ParsePushAdapter         from 'parse-server-push-adapter';
 import MongoStorageAdapter      from './Adapters/Storage/Mongo/MongoStorageAdapter';
+import { DirectRESTController } from './DirectRESTController';
 // Mutate the Parse object to add the Cloud Code handlers
 addParseCloud();
 
@@ -321,6 +322,10 @@ class ParseServer {
     api.use(appRouter.expressApp());
 
     api.use(middlewares.handleParseErrors);
+
+    if (process.env.EXPERIMENTAL == '1') {
+      Parse.CoreManager.setRESTController(DirectRESTController(appId, appRouter));
+    }
 
     //This causes tests to spew some useless warnings, so disable in test
     if (!process.env.TESTING) {

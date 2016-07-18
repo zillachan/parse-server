@@ -318,6 +318,7 @@ describe('PushController', () => {
 
   });
 
+  // TODO: fix test
   it_exclude_dbs(['postgres'])('should properly report failures in _PushStatus', (done) => {
     var pushAdapter = {
      send: function(body, installations) {
