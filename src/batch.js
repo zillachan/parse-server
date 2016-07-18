@@ -1,5 +1,4 @@
 var Parse = require('parse/node').Parse;
-var logger = require('./logger').logger;
 var routeRESTRequest = require('./DirectRESTController').routeRESTRequest;
 // These methods handle batch requests.
 var batchPath = '/batch';
@@ -57,7 +56,5 @@ function handleBatch(router, req) {
 }
 
 module.exports = {
-  mountOnto: mountOnto,
-  handleBatch,
-  routeRESTRequest
+  mountOnto: mountOnto
 };
