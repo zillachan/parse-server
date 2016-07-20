@@ -43,7 +43,7 @@ function handleBatch(router, req) {
       auth: req.auth,
       info: req.info
     }
-    return routeRESTRequest(router, restRequest.method, routablePath, request).then((response) => {
+    return router.tryRouteRequest(restRequest.method, routablePath, request).then((response) => {
       return {success: response.response};
     }, (error) => {
       return {error: {code: error.code, error: error.message}};

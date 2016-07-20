@@ -2,28 +2,11 @@ const Config = require('./Config');
 const Auth = require('./Auth');
 const RESTController = require('parse/lib/node/RESTController');
 const URL = require('url');
+import { logger } from './logger';
 import {
   logRequest,
   logResponse
-} from './SensitiveLogger';
-
-export function routeRESTRequest(router, method, path, request, fallback) {
-
-  // Use the router to figure out what handler to use
-  var match = router.match(method, path);
-  if (!match) {
-    if (fallback) {
-      return fallback();
-    }
-    throw new Parse.Error(
-      Parse.Error.INVALID_JSON,
-      'cannot route ' + method + ' ' + path);
-  }
-  request.params = match.params;
-  return new Promise((resolve, reject) => {
-    match.handler(request).then(resolve, reject);
-  });
-}
+} from './sensitiveLogger';
 
 export function DirectRESTController(applicationId, router) {
   function handleRequest(method, path, data = {}, options = {}) {
@@ -86,11 +69,12 @@ export function DirectRESTController(applicationId, router) {
       if (method === 'GET') {
         query = data;
       }
-      let forwardResponse = false;
-      logRequest(config.serverURL+path, method, data, {});
+
+      logRequest("internal"+path, method, data, {});
+
       return new Parse.Promise((resolve, reject) => {
         getAuth(options, config).then((auth) => {
-          return routeRESTRequest(router, method, path, {
+          let request = {
             body: data,
             config,
             auth,
@@ -99,19 +83,22 @@ export function DirectRESTController(applicationId, router) {
               sessionToken: options.sessionToken
             },
             query
-          }, function() {
-            forwardResponse = true;
-            return RESTController.request.apply(null, args);
+          };
+          return Promise.resolve().then(() => {
+            return router.tryRouteRequest(method, path, request);
+          }).then((response) => {
+              logResponse("internal"+path, method, response.response);
+              resolve(response.response, response.status, response);
+          }, (err) => {
+            if (err instanceof Parse.Error &&
+                err.code == Parse.Error.INVALID_JSON &&
+                err.message == `cannot route ${method} ${path}`) {
+              RESTController.request.apply(null, args).then(resolve, reject);
+            } else {
+              reject(err);
+            }
           });
-        }).then((response) => {
-          if (forwardResponse) {
-            return resolve(response);
-          }
-          logResponse(config.serverURL+path, method, response.response, {});
-          return resolve(response.response, response.status, response);
-        }, (error) => {
-          return reject(error);
-        })
+        }, reject);
       })
       
     };

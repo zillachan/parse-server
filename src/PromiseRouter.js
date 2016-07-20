@@ -13,7 +13,7 @@ import {inspect} from 'util';
 import {
   logRequest,
   logResponse
-} from './SensitiveLogger';
+} from './sensitiveLogger';
 
 const Layer = require('express/lib/router/layer');
 
@@ -136,25 +136,21 @@ export default class PromiseRouter {
 
   expressApp() {
     var expressApp = express();
-    for (var route of this.routes) {
-      switch(route.method) {
-      case 'POST':
-        expressApp.post(route.path, makeExpressHandler(this.appId, route.handler));
-        break;
-      case 'GET':
-        expressApp.get(route.path, makeExpressHandler(this.appId, route.handler));
-        break;
-      case 'PUT':
-        expressApp.put(route.path, makeExpressHandler(this.appId, route.handler));
-        break;
-      case 'DELETE':
-        expressApp.delete(route.path, makeExpressHandler(this.appId, route.handler));
-        break;
-      default:
-        throw 'unexpected code branch';
-      }
-    }
+    this.mountOnto(expressApp);
     return expressApp;
+  }
+
+  tryRouteRequest(method, path, request) {
+    var match = this.match(method, path);
+    if (!match) {
+      throw new Parse.Error(
+        Parse.Error.INVALID_JSON,
+        'cannot route ' + method + ' ' + path);
+    }
+    request.params = match.params;
+    return new Promise((resolve, reject) => {
+      match.handler(request).then(resolve, reject);
+    });
   }
 }
 
