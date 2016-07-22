@@ -837,6 +837,52 @@ describe('Installations', () => {
     });
   });
 
+  it('allows empty installation save with x-parse-installation-id header (regression #2090)', (done) => {
+    let installationId = '12345678-abcd-abcd-abcd-123456789abc';
+    let device = 'android';
+    let input = {};
+    let reqAuth = new auth.Auth({ config, isMaster: true, installationId });
+    rest.create(config, reqAuth, '_Installation', input)
+    .then(createResult => {
+      let headers = {
+        'X-Parse-Application-Id': 'test',
+        'X-Parse-REST-API-Key':   'rest',
+      };
+      request.get({
+        headers: headers,
+        url: 'http://localhost:8378/1/installations/' + createResult.response.objectId,
+        json: true,
+      }, (error, response, body) => {
+        expect(body.objectId).toEqual(createResult.response.objectId);
+        done();
+      });
+    })
+    .catch(error => {
+      console.log(error);
+      fail('failed');
+      done();
+    });
+  });
+  
+  it('allows empty installation save with x-parse-installation-id header with REST (regression #2090)', (done) => {
+    let installationId = '12345678-abcd-abcd-abcd-123456789abc';
+    let device = 'android';
+    let input = {};
+    let headers = {
+      'X-Parse-Application-Id': 'test',
+      'X-Parse-REST-API-Key':   'rest',
+      'X-Parse-Installation-Id': installationId
+    };
+    request.post({
+      headers: headers,
+      url: 'http://localhost:8378/1/classes/_Installation',
+      json: true,
+    }, (error, response, body) => {
+      expect(body.objectId).not.toBeUndefined();
+      done();
+    });
+  });
+
   // TODO: Look at additional tests from installation_collection_test.go:882
   // TODO: Do we need to support _tombstone disabling of installations?
   // TODO: Test deletion, badge increments
