@@ -66,7 +66,7 @@
     "coverage": "cross-env COVERAGE_OPTION='./node_modules/.bin/istanbul cover' npm test",
     "coverage:win": "npm run pretest && cross-env NODE_ENV=test TESTING=1 babel-node ./node_modules/babel-istanbul/lib/cli.js cover ./node_modules/jasmine/bin/jasmine.js && npm run posttest",
     "start": "node ./bin/parse-server",
-    "prepublish": "npm run build",
+    "prepublish": "npm run build || echo",
     "postinstall": "npm run build || echo"
   },
   "engines": {
